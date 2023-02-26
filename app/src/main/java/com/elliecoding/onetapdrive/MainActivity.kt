@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentSender
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -24,10 +25,7 @@ import com.google.android.gms.common.api.Scope
 import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException
 import com.google.api.services.drive.DriveScopes
 
-private const val REQUEST_CODE_ONE_TAP = 0
-private const val REQUEST_CODE_LEGACY = 1
-private const val REQUEST_ERROR_DOWNLOAD = 100
-private const val REQUEST_ERROR_UPLOAD = 101
+private const val TAG = "MainActivity"
 
 class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
 
@@ -58,8 +56,11 @@ class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
             binding.inputButton.isEnabled = isLoggedIn
             binding.delete.isEnabled = isLoggedIn
             if (isLoggedIn) {
-                userViewModel.download(this)
+                userViewModel.download()
             }
+        }
+        userViewModel.downloadRunning.observe(this) {
+            binding.progressDownload.visibility = if (it) View.VISIBLE else View.GONE
         }
 
         userViewModel.storedData.observe(this) {
@@ -71,17 +72,22 @@ class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
     }
 
     private fun signOut() {
-        userViewModel.saveLoginFailure(null)
+        userViewModel.saveLoginFailure()
         oneTapClient.signOut()
-    }
-
-    private fun startLegacySignIn() {
-        startActivityForResult(legacyClient.signInIntent, REQUEST_CODE_LEGACY)
     }
 
     private fun storeText(text: String) {
         binding.textData.text = text
         userViewModel.upload(this, text)
+    }
+
+    private val legacyLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            processLegacySignIn(it.data)
+        }
+
+    private fun startLegacySignIn() {
+        legacyLauncher.launch(legacyClient.signInIntent)
     }
 
     private val oneTapLauncher =
@@ -104,8 +110,6 @@ class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
             }
             Log.d(TAG, "SignIn started")
         }.addOnFailureListener(this) { e ->
-            // No saved credentials found. Launch the One Tap sign-up flow, or
-            // do nothing and continue presenting the signed-out UI.
             Log.d(TAG, "SignIn failed", e)
             userViewModel.saveLoginFailure(e)
         }
@@ -136,32 +140,16 @@ class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
             .build()
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        when (requestCode) {
-            REQUEST_CODE_ONE_TAP -> {
-                processOneTapSignIn(data)
-            }
-
-            REQUEST_CODE_LEGACY -> {
-                processLegacySignIn(data)
-            }
-
-            9 -> {
-                Log.d(TAG, resultCode.toString())
-            }
-        }
-    }
-
     private fun processLegacySignIn(data: Intent?) {
         if (data == null) return
         GoogleSignIn.getSignedInAccountFromIntent(data)
             .addOnSuccessListener { googleAccount: GoogleSignInAccount ->
                 Log.d(TAG, "Signed in as " + googleAccount.email)
-                if (googleAccount.account == null) {
+                val account = googleAccount.account
+                if (account == null) {
                     userViewModel.saveLoginFailure(null)
                 } else {
-                    userViewModel.saveLoginSuccess(this, googleAccount.account!!)
+                    userViewModel.saveLoginSuccess(this, account)
                 }
             }
             .addOnFailureListener { exception: Exception? ->
@@ -184,13 +172,12 @@ class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
 
     override fun onDownloadError(cause: Throwable) {
         if (cause is UserRecoverableAuthIOException) {
-            startActivityForResult(cause.intent!!, REQUEST_ERROR_DOWNLOAD)
+            startActivity(cause.intent)
         }
     }
 
     override fun onUploadError(cause: Throwable) {
+
     }
 
 }
-
-private const val TAG = "MainActivity"

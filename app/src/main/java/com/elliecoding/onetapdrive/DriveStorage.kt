@@ -2,6 +2,7 @@ package com.elliecoding.onetapdrive
 
 import android.content.Context
 import android.util.Log
+import androidx.annotation.WorkerThread
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.FileContent
 import com.google.api.client.http.HttpRequestInitializer
@@ -45,7 +46,6 @@ private const val CREDENTIALS_FILE_PATH = "/credentials.json"
 
 class DriveStorage {
 
-
     companion object {
 
         /**
@@ -76,11 +76,8 @@ class DriveStorage {
 
                     val path: java.io.File = context.filesDir
                     val androidFile = java.io.File(path, "config.txt")
-                    val stream = FileOutputStream(androidFile)
-                    try {
+                    FileOutputStream(androidFile).use { stream ->
                         stream.write(data.toByteArray())
-                    } finally {
-                        stream.close()
                     }
 
                     val mediaContent = FileContent(
@@ -103,7 +100,8 @@ class DriveStorage {
             upload(context, credentials, "")
         }
 
-        suspend fun download(credentials: HttpRequestInitializer): String? {
+        @WorkerThread
+        fun download(credentials: HttpRequestInitializer): String? {
             val service =
                 Drive.Builder(
                     NetHttpTransport(),
@@ -112,29 +110,27 @@ class DriveStorage {
                 )
                     .setApplicationName("OneTapDrive")
                     .build()
-            return withContext(Dispatchers.IO) {
-                try {
-                    var result = ""
-                    val files = service.files().list()
-                        .setSpaces("appDataFolder")
-                        .setFields("nextPageToken, files(id, name)")
-                        .execute()
-                    for (file in files.files) {
-                        Log.i(TAG, "Found file " + file.name)
-                        if (file.name.equals("config.txt")) {
-                            val outputStream = ByteArrayOutputStream()
-                            service.files().get(file.id).executeMediaAndDownloadTo(outputStream)
-                            result = String(outputStream.toByteArray())
-                            break
-                        }
+            return try {
+                var result = ""
+                val files = service.files().list()
+                    .setSpaces("appDataFolder")
+                    .setFields("nextPageToken, files(id, name)")
+                    .execute()
+                for (file in files.files) {
+                    Log.i(TAG, "Found file " + file.name)
+                    if (file.name.equals("config.txt")) {
+                        val outputStream = ByteArrayOutputStream()
+                        service.files().get(file.id).executeMediaAndDownloadTo(outputStream)
+                        result = String(outputStream.toByteArray())
+                        break
                     }
-                    result
-                } catch (ex: HttpResponseException) {
-                    Log.w(TAG, "Error downloading", ex)
-                    null
-                } catch (e: GoogleJsonResponseException) {
-                    throw e
                 }
+                result
+            } catch (ex: HttpResponseException) {
+                Log.w(TAG, "Error downloading", ex)
+                null
+            } catch (e: GoogleJsonResponseException) {
+                throw e
             }
         }
     }

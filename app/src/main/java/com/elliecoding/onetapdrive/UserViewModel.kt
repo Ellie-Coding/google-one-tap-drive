@@ -9,6 +9,9 @@ import androidx.lifecycle.viewModelScope
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.services.drive.DriveScopes
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import java.lang.Exception
 import java.util.Collections
@@ -16,20 +19,26 @@ import java.util.Collections
 private const val TAG = "UserViewModel"
 
 class UserViewModel : ViewModel() {
+
     interface UserEventCallback {
         fun onDownloadError(cause: Throwable)
         fun onUploadError(cause: Throwable)
     }
 
-    private var downloadCallback: UserEventCallback? = null
+    private var eventCallback: UserEventCallback? = null
     private val downloadExceptionHandler = CoroutineExceptionHandler { _, exception ->
         println("CoroutineExceptionHandler got $exception")
-        downloadCallback?.onDownloadError(exception)
+        eventCallback?.onDownloadError(exception)
+    }
+    private val uploadExceptionHandler = CoroutineExceptionHandler { _, exception ->
+        println("CoroutineExceptionHandler got $exception")
+        eventCallback?.onUploadError(exception)
     }
 
     // Pair(Account, Error)
     val userLogin = MutableLiveData(Pair<GoogleAccountCredential?, Exception?>(null, null))
     val storedData = MutableLiveData<String?>()
+    val downloadRunning = MutableLiveData(false)
 
     fun saveLoginSuccess(context: Context, account: Account) {
         // Use the authenticated account to sign in to the Drive service.
@@ -40,21 +49,25 @@ class UserViewModel : ViewModel() {
         )
     }
 
-    fun saveLoginFailure(exception: Exception?) {
+    fun saveLoginFailure(exception: Exception? = null) {
         userLogin.value = Pair(null, exception)
     }
 
-    fun download(userEventCallback: UserEventCallback) {
-        downloadCallback = userEventCallback
+    fun download() {
         viewModelScope.launch(downloadExceptionHandler) {
-            val result = DriveStorage.download(userLogin.value!!.first!!)
+            downloadRunning.value = true
+            val deferred = async(Dispatchers.IO) {
+                DriveStorage.download(userLogin.value!!.first!!)
+            }
+            val result = deferred.await()
+            downloadRunning.value = false
             Log.i(TAG, "download: $result")
             storedData.value = result
         }
     }
 
     fun upload(context: Context, data: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(uploadExceptionHandler) {
             DriveStorage.upload(context, userLogin.value!!.first!!, data)
         }
     }
