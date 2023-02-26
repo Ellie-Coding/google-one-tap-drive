@@ -1,10 +1,13 @@
 package com.elliecoding.onetapdrive
 
 import android.accounts.Account
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.IntentSender
 import android.os.Bundle
 import android.util.Log
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.elliecoding.onetapdrive.databinding.ActivityMainBinding
@@ -23,6 +26,8 @@ import com.google.api.services.drive.DriveScopes
 
 private const val REQUEST_CODE_ONE_TAP = 0
 private const val REQUEST_CODE_LEGACY = 1
+private const val REQUEST_ERROR_DOWNLOAD = 100
+private const val REQUEST_ERROR_UPLOAD = 101
 
 class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
 
@@ -79,17 +84,21 @@ class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
         userViewModel.upload(this, text)
     }
 
+    private val oneTapLauncher =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+            processOneTapSignIn(it.data)
+        }
+
     private fun startOneTapSignIn() {
         oneTapClient.beginSignIn(signInRequest).addOnSuccessListener(this) { result ->
-            // signInLauncher.launch(
-            // IntentSenderRequest.Builder(result.pendingIntent.intentSender).build()
-            //)
             try {
-                startIntentSenderForResult(
-                    result.pendingIntent.intentSender, REQUEST_CODE_ONE_TAP,
-                    null, 0, 0, 0, null
+                oneTapLauncher.launch(
+                    IntentSenderRequest.Builder(result.pendingIntent.intentSender).build()
                 )
             } catch (e: IntentSender.SendIntentException) {
+                Log.e(TAG, "Couldn't start One Tap UI: ${e.localizedMessage}")
+                userViewModel.saveLoginFailure(e)
+            } catch (e: ActivityNotFoundException) {
                 Log.e(TAG, "Couldn't start One Tap UI: ${e.localizedMessage}")
                 userViewModel.saveLoginFailure(e)
             }
@@ -175,7 +184,7 @@ class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
 
     override fun onDownloadError(cause: Throwable) {
         if (cause is UserRecoverableAuthIOException) {
-            startActivityForResult(cause.intent!!, 888)
+            startActivityForResult(cause.intent!!, REQUEST_ERROR_DOWNLOAD)
         }
     }
 

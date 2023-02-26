@@ -90,7 +90,7 @@ class DriveStorage {
                     val file: File = service.files().create(fileMetadata, mediaContent)
                         .setFields("id")
                         .execute()
-                    Log.d("DriveStorage", "File ID: " + file.id)
+                    Log.d(TAG, "Upload success into File ID: " + file.id)
                     file.id
                 } catch (e: GoogleJsonResponseException) {
                     System.err.println("Unable to create file: " + e.details)
