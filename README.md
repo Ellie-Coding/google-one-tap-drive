@@ -1,12 +1,11 @@
 # Description
-Demo project for the new Google OneTapSignin linking it to an OAuth Google Drive request. 
+Demo project for the new Google OneTapSignIn linking it to an OAuth Google Drive request. 
 
 This code combines the benefits of the more modern One-Tap-UI with the Google Drive REST interface. Note that authentication and authorization are currently handled sequentially right away. You can split that code up easily
 
- 
 # Working
-- One-Tap-Signin
-- Legacy-Signin
+- One-Tap-SignIn
+- Legacy-SignIn
 - Drive string file upload
 - Drive string file download
 
