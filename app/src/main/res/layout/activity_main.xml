@@ -14,7 +14,17 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:text="You are currently?" />
+        tools:text="Status" />
+
+    <TextView
+        android:id="@+id/text_login_error"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/text_login"
+        tools:text="Reason" />
 
     <Button
         android:id="@+id/start_onetap"
@@ -23,7 +33,7 @@
         android:text="Start OneTapSignIn"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/text_login" />
+        app:layout_constraintTop_toBottomOf="@id/text_login_error" />
 
     <Button
         android:id="@+id/start_legacy"
@@ -53,7 +63,7 @@
         app:layout_constraintBottom_toTopOf="@id/text_data"
         app:layout_constraintEnd_toStartOf="@id/input_button"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/start_onetap"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_chainStyle="packed" />
 
     <Button
@@ -67,24 +77,17 @@
         app:layout_constraintTop_toTopOf="@id/input_data" />
 
     <TextView
-        android:id="@+id/text_data_label"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Stored data:"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <TextView
         android:id="@+id/text_data"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@android:color/holo_blue_light"
         android:minHeight="100dp"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/text_data_label" />
+        app:layout_constraintTop_toBottomOf="@id/input_data"
+
+        />
 
     <Button
         android:id="@+id/delete"
