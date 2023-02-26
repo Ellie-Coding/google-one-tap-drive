@@ -15,3 +15,4 @@ This code combines the benefits of the more modern One-Tap-UI with the Google Dr
 - Error handling for upload
 - Error handling for Drive permission reject
 - Error handling for IO Stream handling, string conversions, data corruption, aborts etc.
+- Result handling of all internet calls. Only update UI when Drive has confirmed operation

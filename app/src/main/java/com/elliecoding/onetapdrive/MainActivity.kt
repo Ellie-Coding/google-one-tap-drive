@@ -5,15 +5,8 @@ import android.content.Intent
 import android.content.IntentSender
 import android.os.Bundle
 import android.util.Log
-import android.view.Menu
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.drawerlayout.widget.DrawerLayout
-import androidx.navigation.findNavController
-import androidx.navigation.ui.AppBarConfiguration
-import androidx.navigation.ui.navigateUp
-import androidx.navigation.ui.setupActionBarWithNavController
-import androidx.navigation.ui.setupWithNavController
 import com.elliecoding.onetapdrive.databinding.ActivityMainBinding
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
@@ -21,48 +14,66 @@ import com.google.android.gms.auth.api.identity.SignInClient
 import com.google.android.gms.auth.api.identity.SignInCredential
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.Scope
-import com.google.android.material.navigation.NavigationView
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException
 import com.google.api.services.drive.DriveScopes
 import java.util.Collections
 
-
 private const val REQUEST_CODE_ONE_TAP = 0
-private const val REQUEST_CODE_LEGACY = 111
+private const val REQUEST_CODE_LEGACY = 1
 
 class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
 
-    private lateinit var appBarConfiguration: AppBarConfiguration
+    private lateinit var oneTapClient: SignInClient
+    private lateinit var signInRequest: BeginSignInRequest
+    private lateinit var legacyClient: GoogleSignInClient
     private lateinit var binding: ActivityMainBinding
     private val userViewModel: UserViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setSupportActionBar(binding.appBarMain.toolbar)
+        binding.delete.setOnClickListener { userViewModel.delete(this) }
+        binding.inputButton.setOnClickListener { storeText(binding.inputData.text.toString()) }
+        binding.startLegacy.setOnClickListener { startLegacySignIn() }
+        binding.startOnetap.setOnClickListener { startOneTapSignIn() }
+        userViewModel.userLoginStatus.observe(this) { isLoggedIn ->
+            binding.textLogin.text = if (isLoggedIn) "Logged in" else "Not logged in"
+            binding.startOnetap.isEnabled = !isLoggedIn
+            binding.startLegacy.isEnabled = !isLoggedIn
+            binding.inputData.isEnabled = isLoggedIn
+            binding.inputButton.isEnabled = isLoggedIn
+            binding.delete.isEnabled = isLoggedIn
+            if (isLoggedIn) {
+                try {
+                    userViewModel.download(this)
+                } catch (e: UserRecoverableAuthIOException) {
+                    startActivityForResult(e.intent, 9);
+                }
+            }
+        }
 
-        binding.appBarMain.fab.setOnClickListener { userViewModel.delete(this) }
-        val drawerLayout: DrawerLayout = binding.drawerLayout
-        val navView: NavigationView = binding.navView
-        val navController = findNavController(R.id.nav_host_fragment_content_main)
-        // Passing each menu ID as a set of Ids because each
-        // menu should be considered as top level destinations.
-        appBarConfiguration = AppBarConfiguration(
-            setOf(
-                R.id.nav_home, R.id.nav_gallery, R.id.nav_slideshow
-            ), drawerLayout
-        )
-        setupActionBarWithNavController(navController, appBarConfiguration)
-        navView.setupWithNavController(navController)
+        userViewModel.storedData.observe(this) {
+            binding.textData.text = it
+        }
 
-        oneTapSignIn()
+        prepareOneTapSignIn()
+        prepareLegacySignIn()
+    }
+
+    private fun startLegacySignIn() {
+        startActivityForResult(legacyClient.signInIntent, REQUEST_CODE_LEGACY)
+    }
+
+    private fun storeText(text: String) {
+        binding.textData.text = text
+        userViewModel.upload(this, text)
     }
 
     private fun processLegacySignIn(data: Intent?) {
@@ -149,25 +160,20 @@ class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
             // No saved credentials found. Launch the One Tap sign-up flow, or
             // do nothing and continue presenting the signed-out UI.
             Log.d(TAG, "SignIn failed", e)
+            userViewModel.userLoginStatus.value = false
         }
     }
 
-    private lateinit var oneTapClient: SignInClient
-    private lateinit var signInRequest: BeginSignInRequest
-
-    private fun legacySignIn() {
+    private fun prepareLegacySignIn() {
         Log.d(TAG, "Requesting sign-in")
         val signInOptions = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestEmail()
             .requestScopes(Scope(DriveScopes.DRIVE_APPDATA))
             .build()
-        val client = GoogleSignIn.getClient(this, signInOptions)
-
-        // The result of the sign-in Intent is handled in onActivityResult.
-        startActivityForResult(client.signInIntent, REQUEST_CODE_LEGACY)
+        legacyClient = GoogleSignIn.getClient(this, signInOptions)
     }
 
-    private fun oneTapSignIn() {
+    private fun prepareOneTapSignIn() {
         oneTapClient = Identity.getSignInClient(this)
         signInRequest = BeginSignInRequest.builder()
             .setGoogleIdTokenRequestOptions(
@@ -176,24 +182,12 @@ class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
                     // Your server's client ID, not your Android client ID.
                     .setServerClientId(getString(R.string.web_client_id))
                     // Only show accounts previously used to sign in.
-                    .setFilterByAuthorizedAccounts(false)
+                    .setFilterByAuthorizedAccounts(true)
                     .build()
             )
             // Automatically sign in when exactly one credential is retrieved.
             .setAutoSelectEnabled(true)
             .build()
-        startOneTapSignIn()
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        menuInflater.inflate(R.menu.main, menu)
-        return true
-    }
-
-    override fun onSupportNavigateUp(): Boolean {
-        val navController = findNavController(R.id.nav_host_fragment_content_main)
-        return navController.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
     }
 
     override fun onDownloadError(cause: Throwable) {

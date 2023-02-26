@@ -26,9 +26,9 @@ class UserViewModel : ViewModel() {
     }
     var credentials: HttpRequestInitializer? = null
     val userLoginStatus = MutableLiveData(false)
-    val storedData = MutableLiveData<String>()
+    val storedData = MutableLiveData<String?>()
 
-    fun download(userEventCallback: UserEventCallback, context: Context) {
+    fun download(userEventCallback: UserEventCallback) {
         downloadCallback = userEventCallback
         viewModelScope.launch(downloadExceptionHandler) {
             val result = DriveStorage.download(credentials!!)
@@ -41,13 +41,6 @@ class UserViewModel : ViewModel() {
         viewModelScope.launch {
             DriveStorage.upload(context, credentials!!, data)
         }
-    }
-
-    fun inTwoHours(): Date {
-        val calendar: Calendar = Calendar.getInstance()
-        calendar.time = Date()
-        calendar.add(Calendar.HOUR_OF_DAY, 2)
-        return calendar.time
     }
 
     fun delete(context: Context) {
