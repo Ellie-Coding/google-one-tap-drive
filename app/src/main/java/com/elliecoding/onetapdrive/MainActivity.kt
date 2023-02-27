@@ -11,6 +11,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.elliecoding.onetapdrive.databinding.ActivityMainBinding
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
@@ -24,15 +25,27 @@ import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.common.api.Scope
 import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException
 import com.google.api.services.drive.DriveScopes
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.launch
 
 private const val TAG = "MainActivity"
 
-class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
+class MainActivity : AppCompatActivity() {
 
     private lateinit var oneTapClient: SignInClient
     private lateinit var signInRequest: BeginSignInRequest
     private lateinit var legacyClient: GoogleSignInClient
     private lateinit var binding: ActivityMainBinding
+
+    private val downloadExceptionHandler = CoroutineExceptionHandler { _, exception ->
+        println("CoroutineExceptionHandler got $exception")
+        onDownloadError(exception)
+    }
+    private val uploadExceptionHandler = CoroutineExceptionHandler { _, exception ->
+        println("CoroutineExceptionHandler got $exception")
+        onUploadError(exception)
+    }
+
     private val userViewModel: UserViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,7 +69,9 @@ class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
             binding.inputButton.isEnabled = isLoggedIn
             binding.delete.isEnabled = isLoggedIn
             if (isLoggedIn) {
-                userViewModel.download()
+                lifecycleScope.launch(downloadExceptionHandler) {
+                    userViewModel.download()
+                }
             }
         }
         userViewModel.downloadRunning.observe(this) {
@@ -77,8 +92,9 @@ class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
     }
 
     private fun storeText(text: String) {
-        binding.textData.text = text
-        userViewModel.upload(this, text)
+        lifecycleScope.launch(uploadExceptionHandler) {
+            userViewModel.upload(this@MainActivity, text)
+        }
     }
 
     private val legacyLauncher =
@@ -170,13 +186,13 @@ class MainActivity : AppCompatActivity(), UserViewModel.UserEventCallback {
         }
     }
 
-    override fun onDownloadError(cause: Throwable) {
+    private fun onDownloadError(cause: Throwable) {
         if (cause is UserRecoverableAuthIOException) {
             startActivity(cause.intent)
         }
     }
 
-    override fun onUploadError(cause: Throwable) {
+    private fun onUploadError(cause: Throwable) {
 
     }
 

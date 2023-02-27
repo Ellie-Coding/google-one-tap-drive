@@ -11,7 +11,6 @@ import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
-import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,30 +18,12 @@ import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import java.util.Collections
 
-
 private const val TAG = "DriveStorage"
-
-/**
- * Application name.
- */
-private const val APPLICATION_NAME = "Google Drive API Java Quickstart"
 
 /**
  * Global instance of the JSON factory.
  */
 private val JSON_FACTORY: JsonFactory = GsonFactory.getDefaultInstance()
-
-/**
- * Directory to store authorization tokens for this application.
- */
-private const val TOKENS_DIRECTORY_PATH = "tokens"
-
-/**
- * Global instance of the scopes required by this quickstart.
- * If modifying these scopes, delete your previously saved tokens/ folder.
- */
-private val SCOPES = listOf(DriveScopes.DRIVE_APPDATA)
-private const val CREDENTIALS_FILE_PATH = "/credentials.json"
 
 class DriveStorage {
 
@@ -53,6 +34,7 @@ class DriveStorage {
          *
          * @return Created file's Id.
          */
+        @WorkerThread
         suspend fun upload(
             context: Context,
             credentials: HttpRequestInitializer,
@@ -61,7 +43,7 @@ class DriveStorage {
             // Build a new authorized API client service.
             val service: Drive = Drive.Builder(
                 NetHttpTransport(),
-                GsonFactory.getDefaultInstance(),
+                JSON_FACTORY,
                 credentials
             )
                 .setApplicationName("OneTapDrive")
@@ -96,6 +78,7 @@ class DriveStorage {
             }
         }
 
+        @WorkerThread
         suspend fun delete(context: Context, credentials: HttpRequestInitializer) {
             upload(context, credentials, "")
         }

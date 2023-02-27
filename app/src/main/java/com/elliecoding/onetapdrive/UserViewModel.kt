@@ -12,28 +12,17 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.lang.Exception
 import java.util.Collections
 
 private const val TAG = "UserViewModel"
 
+/**
+ * ViewModel for the state of the user and the data they hold/stored.
+ */
 class UserViewModel : ViewModel() {
-
-    interface UserEventCallback {
-        fun onDownloadError(cause: Throwable)
-        fun onUploadError(cause: Throwable)
-    }
-
-    private var eventCallback: UserEventCallback? = null
-    private val downloadExceptionHandler = CoroutineExceptionHandler { _, exception ->
-        println("CoroutineExceptionHandler got $exception")
-        eventCallback?.onDownloadError(exception)
-    }
-    private val uploadExceptionHandler = CoroutineExceptionHandler { _, exception ->
-        println("CoroutineExceptionHandler got $exception")
-        eventCallback?.onUploadError(exception)
-    }
 
     // Pair(Account, Error)
     val userLogin = MutableLiveData(Pair<GoogleAccountCredential?, Exception?>(null, null))
@@ -53,23 +42,20 @@ class UserViewModel : ViewModel() {
         userLogin.value = Pair(null, exception)
     }
 
-    fun download() {
-        viewModelScope.launch(downloadExceptionHandler) {
-            downloadRunning.value = true
-            val deferred = async(Dispatchers.IO) {
-                DriveStorage.download(userLogin.value!!.first!!)
-            }
-            val result = deferred.await()
-            downloadRunning.value = false
-            Log.i(TAG, "download: $result")
-            storedData.value = result
+    suspend fun download() = coroutineScope {
+        downloadRunning.value = true
+        val deferred = async(Dispatchers.IO) {
+            DriveStorage.download(userLogin.value!!.first!!)
         }
+        val result = deferred.await()
+        downloadRunning.value = false
+        Log.i(TAG, "download: $result")
+        storedData.value = result
     }
 
-    fun upload(context: Context, data: String) {
-        viewModelScope.launch(uploadExceptionHandler) {
-            DriveStorage.upload(context, userLogin.value!!.first!!, data)
-        }
+    suspend fun upload(context: Context, data: String) {
+        storedData.value = data
+        DriveStorage.upload(context, userLogin.value!!.first!!, data)
     }
 
     fun delete(context: Context) {
