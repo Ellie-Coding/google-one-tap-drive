@@ -8,9 +8,9 @@ This code combines the benefits of the more modern One-Tap-UI with the Google Dr
 - Legacy-SignIn
 - Drive string file upload
 - Drive string file download
+- Choose between sign-in-methods
 
 # To Do
-- Switch between sign-in-methods
 - Error handling for user cancels and rejects
 - Error handling for upload
 - Error handling for Drive permission reject

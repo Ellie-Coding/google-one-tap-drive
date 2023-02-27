@@ -8,7 +8,6 @@ import com.google.api.client.http.FileContent
 import com.google.api.client.http.HttpRequestInitializer
 import com.google.api.client.http.HttpResponseException
 import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.File
@@ -19,11 +18,6 @@ import java.io.FileOutputStream
 import java.util.Collections
 
 private const val TAG = "DriveStorage"
-
-/**
- * Global instance of the JSON factory.
- */
-private val JSON_FACTORY: JsonFactory = GsonFactory.getDefaultInstance()
 
 class DriveStorage {
 
@@ -43,7 +37,7 @@ class DriveStorage {
             // Build a new authorized API client service.
             val service: Drive = Drive.Builder(
                 NetHttpTransport(),
-                JSON_FACTORY,
+                GsonFactory.getDefaultInstance(),
                 credentials
             )
                 .setApplicationName("OneTapDrive")
@@ -88,10 +82,9 @@ class DriveStorage {
             val service =
                 Drive.Builder(
                     NetHttpTransport(),
-                    JSON_FACTORY,
+                    GsonFactory.getDefaultInstance(),
                     credentials
-                )
-                    .setApplicationName("OneTapDrive")
+                ).setApplicationName("OneTapDrive")
                     .build()
             return try {
                 var result = ""
